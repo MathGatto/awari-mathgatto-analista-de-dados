@@ -1,0 +1,135 @@
+Prática: Perguntas de Negócios com SQL IV
+Esta é a prática da 8ª aula deste curso.
+
+
+Usando os datasets em questão, o objetivo é construir, para cada caso abaixo, 
+uma consulta (query) SQL que:
+
+
+1. retorne todos os pagamentos do cliente, com suas datas de aprovação, valor da compra e o 
+valor total que o cliente já gastou em todas as suas compras, mostrando somente os clientes 
+onde o valor da compra é diferente do valor total já gasto;
+
+SELECT 
+*
+FROM 
+  (
+    SELECT
+      O.customer_id AS cliente,
+      P.payment_value AS valor_compra,
+      SUM(P.payment_value) OVER (PARTITION BY O.customer_id ORDER BY P.payment_value) AS cum,
+      SUM(P.payment_value) OVER (PARTITION BY O.customer_id) AS valor_total,
+      O.order_approved_at AS data_aprovacao
+    FROM `awari-analista-de-dados.datasets_awari.olist_orders_dataset` O
+    INNER JOIN `awari-analista-de-dados.datasets_awari.olist_order_payments_dataset` P
+    ON P.order_id = O.order_id
+)
+WHERE valor_compra < valor_total
+ORDER BY cliente
+
+
+
+2. retorne as categorias válidas, suas somas totais dos valores de vendas, 
+um ranqueamento de maior valor para menor valor junto com o somatório acumulado 
+dos valores pela mesma regra do ranqueamento;
+
+SELECT
+  categoria,
+  total_vendas,
+  SUM(total_vendas) OVER (ORDER BY total_vendas) as cum
+FROM (
+  SELECT
+      PRO.product_category_name AS categoria,
+      SUM(PAY.payment_value) AS total_vendas
+      FROM `awari-analista-de-dados.datasets_awari.olist_order_payments_dataset` PAY
+    INNER JOIN `awari-analista-de-dados.datasets_awari.olist_order_items_dataset` OI
+    ON PAY.order_id = OI.order_id
+    INNER JOIN `awari-analista-de-dados.datasets_awari.olist_products_dataset` PRO ON OI.product_id = PRO.product_id
+      WHERE PRO.product_category_name IS NOT NULL
+      GROUP BY 1
+)
+ORDER BY 2 DESC
+
+
+
+3. crie uma view (SELLER_STATS) para mostrar por fornecedor, a quantidade de itens 
+enviados, o tempo médio de postagem após a aprovação da compra, a 
+quantidade total de pedidos de cada Fornecedor, note que trabalharemos na 
+mesma query com 2 granularidades diferentes;
+
+SELECT
+  S.seller_id AS VENDEDOR,
+  COUNT (D.order_status) AS qtd_itens,
+  CASE
+    WHEN D.order_status = 'delivered' OR D.order_status = 'shipped' THEN 'ENVIADO'
+  ELSE
+  'NAO_ENVIADO'
+END
+  AS STATUS,
+  SUM (COUNT (D.order_status)) OVER (PARTITION BY S.seller_id) AS VENDA_TOTAL_VENDEDOR,
+  AVG(DATE_DIFF(D.order_delivered_carrier_date, D.order_approved_at, DAY)) AS MEDIA_POSTAGEM
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_sellers_dataset` S
+INNER JOIN
+  `awari-analista-de-dados.datasets_awari.olist_order_items_dataset` O
+ON
+  O.seller_id = S.seller_id
+INNER JOIN
+  `awari-analista-de-dados.datasets_awari.olist_orders_dataset` D
+ON
+  D.order_id = O.order_id
+GROUP BY
+  STATUS,
+  VENDEDOR
+ORDER BY
+  1
+
+
+
+4. queremos dar um cupom de 10% do valor da última compra do cliente. 
+Porém os clientes elegíveis a este cupom devem ter feito uma compra anterior a última 
+(a partir da data de aprovação do pedido) que tenha sido maior ou igual o valor da 
+última compra. Crie uma query que retorne os valores dos cupons para cada um dos 
+clientes elegíveis;
+
+SELECT
+  CLIENTE,
+  PENULTIMA_COMPRA,
+  ULTIMA_COMPRA,
+  CASE
+    WHEN PENULTIMA_COMPRA >= ULTIMA_COMPRA THEN ROUND (ULTIMA_COMPRA * 0.10,2)
+  ELSE
+  0
+END
+  CUPOM
+FROM (
+  SELECT
+    P.order_id AS PEDIDO,
+    C.customer_unique_id AS CLIENTE,
+    D.order_status AS STATUS,
+    DATE(D.order_approved_at) AS DATA_APROVACAO,
+    SUM (P.payment_value) AS VALOR_COMPRA,
+    last_value (P.payment_value) OVER (PARTITION BY C.customer_unique_id ORDER BY DATE(D.order_approved_at)) AS ULTIMA_COMPRA,
+    LAG (P.payment_value) OVER (PARTITION BY C.customer_unique_id ORDER BY DATE(order_approved_at)) AS PENULTIMA_COMPRA
+  FROM
+    `awari-analista-de-dados.datasets_awari.olist_orders_dataset` D
+  INNER JOIN
+    `awari-analista-de-dados.datasets_awari.olist_order_payments_dataset` P
+  ON
+    P.order_id = D.order_id
+  INNER JOIN
+    `awari-analista-de-dados.datasets_awari.olist_customers_dataset` C
+  ON
+    C.customer_id = D.customer_id
+  WHERE
+    D.order_status = 'delivered'
+    AND D.order_approved_at IS NOT NULL
+  GROUP BY
+    1,
+    2,
+    3,
+    4,
+    P.payment_value,
+    D.order_approved_at )
+WHERE
+  PENULTIMA_COMPRA IS NOT NULL

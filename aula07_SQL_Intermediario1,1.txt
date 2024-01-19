@@ -1,0 +1,129 @@
+Prática: Perguntas de Negócios com SQL II
+Esta é a segunda prática da 6ª aula deste curso. Ela é similar à primeira.
+
+Para fazê-la, vamos precisar da base de dados base_rh.csv, 
+que já utilizamos na aula  e na prática anterior e que, provavelmente, 
+já estará alimentada no Google Big Query. Se não estiver, não se preocupe. 
+Será recapitulado como importá-la à ferramenta durante a aula.
+
+Usando a base de dados, então, o objetivo é criar, para cada caso abaixo, 
+uma consulta (query) SQL que:
+
+
+1. retorne distintamente a coluna 
+VP e os respectivos tamanhos do campo (quantidade de caracteres);
+
+SELECT 
+  vp,
+  LENGTH(vp) as len_vp
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
+
+2. retorne um ID único para cada funcionário e os demais campos da base_rh. 
+Esse ID único será o nome do funcionário mais a data de nascimento do 
+mesmo (dica: a questão requer um pouco de lógica);
+
+SELECT 
+  concat(nome,' ',nascimento) as ID_UNICO,
+  *
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
+
+3. retorne os campos nome, idade (esse campo não existe, precisa ser criado) 
+e classifique as idades nas seguintes faixas etárias: 18-25, 26-30, 31-35, 36-45, >45;
+
+SELECT 
+  nome,
+  date_diff(current_date(),nascimento,YEAR) as idade,
+  case
+    when date_diff(current_date(),nascimento,YEAR) between 18 and 25 then '18-25'
+    when date_diff(current_date(),nascimento,YEAR) between 26 and 30 then '26-30'
+    when date_diff(current_date(),nascimento,YEAR) between 31 and 35 then '31-35'
+    when date_diff(current_date(),nascimento,YEAR) between 36 and 45 then '36-45'
+    when date_diff(current_date(),nascimento,YEAR) > 45 then '>45'
+  end faixa_etaria
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
+
+4. retorne a idade dos funcionários e divida essa idade por dois 
+(dica: são dois campos, IDADE e IDADE_DIVIDIDO_POR_2);
+
+SELECT 
+  nome,
+  date_diff(current_date(),nascimento,YEAR) as idade,
+  (date_diff(current_date(),nascimento,YEAR)/2) as idade_dividido_por_2
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
+
+5. retorne quantos funcionários ativos existem por VPs excluindo a VP = Null da listagem;
+
+SELECT 
+  countif(vp is not null) as VPs_ativos,
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
+
+6. retorne o número de funcionários contratados por mes/ano;
+
+SELECT
+  count(nome) as num_contratacoes,
+  mes_admissao,
+  ano_admissao
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where (mes_admissao is not null and ano_admissao is not null)
+group by 2,3
+order by ano_admissao ASC, mes_admissao ASC
+
+
+
+7. retorne o número de funcionários demitidos por mês/ano;
+
+SELECT
+  count(nome) as num_demissoes,
+  extract(month from data_demissao) as mes_demissao,
+  extract(year from data_demissao) as ano_demissao
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where (data_demissao is not null)
+group by 2,3
+order by 3 ASC, 2 ASC
+
+
+
+8. retorne a quantidade de desligamentos em 2022, especificando por tipo de desligamento;
+
+SELECT
+  count(nome) as num_demissoes,
+  tipo_de_desligamento,
+  extract(year from data_demissao) as ano_demissao
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where extract(year from data_demissao) = 2022 
+and (data_demissao is not null)
+group by 2,3
+order by 3 ASC
+
+
+9. retorne o número de funcionários ativos na empresa;
+
+SELECT
+  COUNTIF(status = 'Ativo') AS usuarios_ativos
+FROM
+  `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
+
+10. retorne a diversidade entre os cargos de gestão na empresa, isto é, a quantidade 
+de funcionários ativos por cargos de gestão, especificando por sexo
+
+SELECT
+  COUNTIF(status = 'Ativo') AS usuarios_ativos,
+  sexo,
+  nivel_de_carreira
+FROM
+  `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+  where nivel_de_carreira is not null and sexo is not null
+  group by 2,3
+  order by 3

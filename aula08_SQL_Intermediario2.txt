@@ -1,0 +1,109 @@
+Prática: Perguntas de Negócios com SQL III
+Esta é a prática da 7ª aula deste curso.
+
+
+Usando os datasets em questão, o objetivo é construir, para cada caso abaixo, 
+uma consulta (query) SQL que:
+
+
+1. selecione os dados da tabela de pagamentos onde só
+apareçam os tipos de pagamento VOUCHER e BOLETO;
+
+SELECT
+  *
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_order_payments_dataset`
+WHERE payment_type IN ('voucher', 'boleto')
+
+
+
+2. retorne aos campos da tabela de produtos e calcule o volume de cada produto em um novo campo;
+
+SELECT
+  *,
+  (product_length_cm * product_height_cm * product_width_cm) as product_volume
+
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_products_dataset`
+
+
+
+3. retorne pedidos que foram feitos somente no ano de 2017;
+
+SELECT
+  order_id,
+  customer_id,
+  order_status,
+  format_date('%G-%m', order_purchase_timestamp) as ano_mes_pedido
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_orders_dataset`
+WHERE extract(YEAR from order_purchase_timestamp) =  2017
+ORDER BY 4 ASC
+
+
+
+4. encontre os clientes do estado de SP e que não morem na cidade de São Paulo;
+
+SELECT
+  *
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_customers_dataset`
+where customer_state = 'SP' and customer_city != 'sao paulo'
+
+
+
+5. crie uma tabela analítica de todos os itens que foram vendidos, mostrando somente pedidos interestaduais (queremos saber quantos dias os fornecedores demoram para postar o produto, se o produto chegou ou não no prazo);
+
+SELECT
+  order_id,
+  customer_id,
+  order_status,
+  order_purchase_timestamp,
+  order_approved_at,
+  order_delivered_carrier_date,
+  DATE_DIFF(order_delivered_carrier_date, order_approved_at, DAY) AS dias_atraso_para_fornecedor,
+  order_delivered_customer_date,
+  order_estimated_delivery_date,
+  CASE
+    WHEN order_delivered_customer_date <= order_estimated_delivery_date THEN 'Chegou no prazo'
+    WHEN order_delivered_customer_date IS NULL THEN NULL
+  ELSE
+  'Nao chegou no prazo'
+END
+  AS chegou_no_prazo
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_orders_dataset`
+
+
+
+6. mostre o total vendido (em valor) de cada vendedor (seller_id) em cada uma das categorias de produtos, somente retornando os vendedores que nesse somatório e agrupamento venderam mais de $1000 (queremos a categoria do produto e os vendedores; para cada uma dessas categorias, mostre seus valores de venda de forma decrescente);
+
+SELECT
+  items.seller_id AS id_vendedor,
+  (
+  SELECT
+    product_category_name
+  FROM `awari-analista-de-dados.datasets_awari.olist_products_dataset` prod where prod.product_id = items.product_id) AS categoria_produto,
+  ROUND(SUM(payment_value),3) AS total_vendas
+FROM `awari-analista-de-dados.datasets_awari.olist_order_payments_dataset` pay
+JOIN `awari-analista-de-dados.datasets_awari.olist_order_items_dataset` items
+ON pay.order_id = items.order_id
+GROUP BY 1,2
+HAVING ROUND(SUM(payment_value),3) > 1000
+ORDER BY 3 DESC
+
+7. mostre os 5 clientes (customer_id) que gastaram mais dinheiro em compras, qual foi o valor total de todas as compras deles, quantidade de compras, e valor médio gasto por compras (ordenar os mesmos por ordem decrescente pela média do valor de compra).
+
+SELECT
+  (select
+    orders.customer_id 
+  from `awari-analista-de-dados.datasets_awari.olist_orders_dataset` orders where orders.order_id = pay.order_id)
+  as customer_id,
+  ROUND(SUM(pay.payment_value),3) as total_compras,
+  COUNT(pay.payment_value) as qtd_compras,
+  ROUND(SUM(pay.payment_value) / COUNT(pay.payment_value),3) as media_valor_compra
+FROM
+  `awari-analista-de-dados.datasets_awari.olist_order_payments_dataset` pay
+GROUP BY 1
+ORDER BY 4 DESC
+LIMIT 5

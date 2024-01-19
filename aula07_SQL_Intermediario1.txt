@@ -1,0 +1,75 @@
+Prática: Perguntas de Negócios com SQL I
+
+Usando a base de dados, então, 
+o objetivo é construir, para cada caso abaixo, uma consulta (query) SQL que:
+
+
+
+1. retorne todos os campos dos profissionais que possuem "nivel_de_carreira" = 'IC5';
+
+SELECT 
+  *
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where nivel_de_carreira = 'IC5'
+
+
+
+2. retorne todos os campos dos profissionais que possuem 
+"nivel_de_carreira" = 'IC5', que são da "localidade" = "São Paulo" OU "Londrina";
+
+SELECT 
+  *
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where nivel_de_carreira = 'IC5'
+and localidade in ('São Paulo', 'Londrina')
+
+
+
+3. retorne distintamente a coluna "familia_de_carreira" onde a primeira letra seja uma vogal;
+
+SELECT 
+  familia_de_carreira
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where LEFT (familia_de_carreira,1) in ('A','E','I','O','U')
+
+
+
+4. retorne distintamente a coluna 
+"familia_de_carreira" onde a primeira letra seja uma consoante;
+
+SELECT 
+  familia_de_carreira
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where LEFT (familia_de_carreira,1) not in ('A','E','I','O','U')
+
+
+
+5. retorne o nome dos funcionários em ordem decrescente;
+
+SELECT 
+  nome
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+order by nome DESC
+
+
+
+6. retorne as colunas NOME e NASCIMENTO dos funcionários e que nasceram entre 1985 e 1990;
+
+SELECT 
+  nome,
+  nascimento
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+where extract(year from nascimento) between 1985 and 1990
+order by nascimento desc
+
+
+
+7. retorne a coluna VP e uma nova coluna chamada VP_2 com a seguinte 
+condicional: "se a coluna VP for igual a 'C&V' então 'Clientes e Vendas', se não VP".
+
+SELECT 
+  vp,
+  if (vp = 'C&V', 'Clientes e Vendas', 'VP')as vp_2
+FROM `awari-analista-de-dados.datasets_awari.dataset_base_rh`
+
+
